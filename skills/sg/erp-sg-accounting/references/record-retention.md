@@ -2,29 +2,29 @@
 
 Official information reviewed: 2026-09-03. Re-check the rules for the entity and document type before applying deletion policies.
 
-ACRAとIRASの保存年数は[parameter-inventory.md](parameter-inventory.md)を参照する。起算点や対象が異なるため、同じ年数でも一つの削除ルールへまとめない。
+Refer to [parameter-inventory.md](parameter-inventory.md) for ACRA and IRAS retention periods. Their scope and start points differ, so do not combine them into one deletion rule even when the number of years is the same.
 
 Official sources:
 
-- [ACRA: Company directors’ duties and key obligations](https://www.acra.gov.sg/manage/companies/legal-requirements-common-offences/directors-duties/)
+- [ACRA: Company directors' duties and key obligations](https://www.acra.gov.sg/manage/companies/legal-requirements-common-offences/directors-duties/)
 - [IRAS: Keeping records](https://www.iras.gov.sg/taxes/goods-services-tax-%28gst%29/basics-of-gst/invoicing-price-display-and-record-keeping/keeping-records)
 
 ## SQL and storage design
 
-証憑とretention policyに次を持たせる。
+Store the following for evidence and retention policies:
 
-- entity、document type、transaction date、financial year、GST accounting period
-- supplier/customer、amount、GST classification
-- d6e storage file ID、original filename、MIME type、digest
-- source、received/issued timestamp、related invoice/payment/journal IDs
-- retention rule ID、retention start、retain until、legal hold
-- replacement、credit/debit note、original documentとの関係
+- entity, document type, transaction date, financial year, and GST accounting period
+- supplier or customer, amount, and GST classification
+- d6e storage file ID, original filename, MIME type, and digest
+- source, received or issued timestamp, and related invoice, payment, and journal IDs
+- retention rule ID, retention start, retain-until date, and legal hold
+- relationships to replacements, credit or debit notes, and original documents
 
-一律「作成日から5年」と計算しない。ACRAとIRASで起算点や対象が異なるため、rule IDごとに起算イベントを持つ。
+Do not apply a blanket calculation of "five years from creation." ACRA and IRAS rules can have different scopes and start points, so store the anchor event for each rule ID.
 
 ## Controls
 
-- `deleted_at`だけで法定保存を満たすと仮定しない。
-- retain-until以前の物理削除をPolicyと削除STFで拒否する。
-- GST return、financial statements、XBRL filingで使用したsnapshotとsource recordsの関係を保持する。
-- external providerへ保存を委ねる場合でも、取得可能性、完全性、移行・解約時exportを検証する。
+- Do not assume that `deleted_at` alone satisfies statutory retention.
+- Use Policy and a deletion STF to reject physical deletion before the retain-until date.
+- Preserve relationships between source records and snapshots used for GST returns, financial statements, and XBRL filings.
+- When records are retained by an external provider, verify retrievability, completeness, and export on migration or termination.

@@ -2,45 +2,45 @@
 
 ## Use a single STF for atomic accounting changes
 
-転記、取消、消込、期間締めのように、複数SQLがすべて成功またはすべて失敗すべき操作は一つのSTFに置く。一つのSTF内の`sql()`は一つのDBトランザクションを共有する。
+Keep posting, reversal, settlement, period close, and similar operations in one STF when all SQL statements must either succeed or fail together. Calls to `sql()` inside one STF share one database transaction.
 
-転記STFの責務例:
+Example posting-STF responsibilities:
 
-1. 入力のUUID、日付、列挙値、金額形式を検証する。
-2. source keyの重複を調べる。
-3. 会計期間がopenであることを調べる。
-4. 勘定科目、通貨、税区分が有効であることを調べる。
-5. 借方・貸方を取引通貨と機能通貨で集計し一致を確認する。
-6. ヘッダーと全明細を書き込む。
-7. 作成した仕訳IDと検証可能な集計値を返す。
+1. Validate UUID, date, enum, and monetary input formats.
+2. Check for a duplicate source key.
+3. Confirm that the accounting period is open.
+4. Confirm that accounts, currencies, and tax classifications are effective.
+5. Sum debits and credits in transaction and functional currencies and require balance.
+6. Write the header and every line.
+7. Return the journal ID and independently verifiable totals.
 
 ## Use Workflow for orchestration
 
-次の場合だけWorkflowを使う。
+Use a Workflow only when the process must:
 
-- ファイル取込、検証、転記、結果ファイル生成を順に行う。
-- 外部APIから取得し、変換STFを経て、結果を別APIへ送る。
-- 人の入力または承認を挟む複数ステップを再利用する。
-- 複数の独立したSTFを順序付きで実行する。
+- Import a file, validate it, post it, and generate an output file in sequence.
+- Fetch from an external API, transform the result with an STF, and send it to another API.
+- Reuse multiple steps containing human input or approval.
+- Run multiple independent STFs in a defined order.
 
-Workflowの各STFは別トランザクションである。後続ステップの失敗で先行ステップは自動的に戻らない。各ステップを冪等にし、状態列とsource keyで再実行可能にする。必要なら補償STFを明示する。
+Each STF in a Workflow uses a separate transaction. A later failure does not automatically roll back an earlier step. Make each step idempotent and retryable through explicit state and source keys. Define a compensating STF when necessary.
 
 ## Versioning
 
-- 法定計算、締め、転記の再現性が必要なWorkflowではSTFとEffectのバージョンを固定する。
-- 最新版追従を使う場合は、変更後に回帰テストを実施し、いつから新ロジックを適用したか記録する。
-- 税率などの時点依存値をSTFコードへ埋め込まず、適用日付きSQLマスタから読む。
+- Pin STF and Effect versions in a Workflow when statutory calculations, close, or posting must be reproducible.
+- When following the latest version, run regression tests after a change and record when the new logic begins to apply.
+- Do not embed time-dependent values such as tax rates in STF code. Read them from an effective-dated SQL master.
 
 ## Input safety
 
-STFの`sql()`はパラメータ引数を受け取らない。したがって次を守る。
+STF `sql()` does not accept a separate parameter argument. Therefore:
 
-- UUID、ISO日付、金額、通貨コード、状態を厳密に検証する。
-- SQL識別子をユーザー入力から組み立てない。固定マッピングを使う。
-- 文字列はシングルクォートを二重化してPostgreSQLリテラルへ変換する。
-- エラー応答を成功値として返さず、会計不変条件違反は例外にしてトランザクションを失敗させる。
-- 書込み後の例外を`catch`して`{ success: false }`のような通常値を返さない。その場合はSTFが成功扱いとなり、途中までの書込みがcommitされ得る。必要な後処理だけを行ったうえで再throwする。
+- Strictly validate UUIDs, ISO dates, monetary values, currency codes, and states.
+- Never construct SQL identifiers from user input. Use a fixed mapping.
+- Escape string values as PostgreSQL literals by doubling single quotes.
+- Do not return an error response as a normal success value. Throw on an accounting-invariant violation so the transaction fails.
+- Do not catch an exception after a write and return a normal value such as `{ success: false }`. That would mark the STF as successful and may commit partial writes. Perform only necessary cleanup and rethrow.
 
 ## Validation before saving
 
-保存済みSTFを作成する前に、同じコードを`d6e_instant_run_stf`へ渡して検証する。正常系に加え、不均衡、重複、無効日付、締め期間、権限不足を確認してから`d6e_create_stf`を実行する。
+Before creating a saved STF, pass the same code to `d6e_instant_run_stf`. Test an allowed case and rejection of unbalanced data, duplicates, invalid dates, closed periods, and insufficient authorization before calling `d6e_create_stf`.

@@ -4,18 +4,18 @@ Official information reviewed: 2026-09-03. Company classification, exemptions, f
 
 ## Separate reporting layers
 
-1. d6e SQL上のledgerとsubledgers
-2. entityのfinancial statements
-3. ACRA XBRL taxonomy mapping
-4. IRAS GSTおよびcorporate income tax reporting data
+1. Ledger and subledgers in d6e SQL
+2. Entity financial statements
+3. ACRA XBRL taxonomy mappings
+4. IRAS GST and corporate income-tax reporting data
 
-一つのaccount codeをACRA/IRAS fieldへ直接固定せず、report type、version、effective dates付きmapping tableを持つ。
+Do not bind an account code directly to an ACRA or IRAS field. Use a mapping table with report type, version, and effective dates.
 
 ## ACRA XBRL
 
-ACRAは会社分類によりfinancial statementsの提出要否とFull XBRL、Simplified XBRL、specialised templates、PDF等を区別している。対象会社の分類を確認せずtemplateを選ばない。
+ACRA distinguishes filing requirements and formats by company classification, including Full XBRL, Simplified XBRL, specialised templates, and PDF. Do not select a template before confirming the entity's classification.
 
-適用するACRA taxonomyと開始日は[parameter-inventory.md](parameter-inventory.md)を参照し、taxonomy versionをコードへ固定しない。生成時に対象versionとvalidation rulesを記録する。
+Refer to [parameter-inventory.md](parameter-inventory.md) for the applicable ACRA taxonomy and start date. Do not hard-code a taxonomy version. Record the applicable version and validation rules when generating output.
 
 Official sources:
 
@@ -24,18 +24,18 @@ Official sources:
 
 ## Output traceability
 
-- entity、UEN、financial year end、reporting period
-- ledger close IDとextract timestamp
-- accounting framework、mapping version、taxonomy version
-- generated file ID、validation result、preparer、approver
-- report lineからaccount/journalへ戻るdrill-down key
+- entity, UEN, financial year end, and reporting period
+- ledger-close ID and extraction timestamp
+- accounting framework, mapping version, and taxonomy version
+- generated file ID, validation result, preparer, and approver
+- drill-down key from each report line to its accounts and journals
 
 ## Validation
 
-- trial balanceのdebitとcreditが一致する。
-- subledgerとcontrol accountが一致する。
-- financial statementsのcomparativesとopening balancesが連続する。
-- XBRL validation rulesを対象taxonomy versionで通す。
-- GST return集計からinvoice、credit note、journalへ遡れる。
+- Confirm that trial-balance debits and credits agree.
+- Reconcile subledgers to control accounts.
+- Confirm continuity of comparative figures and opening balances in the financial statements.
+- Run validation rules for the applicable XBRL taxonomy version.
+- Trace GST-return aggregates back to invoices, credit notes, and journals.
 
-d6eがACRAやIRASへ直接提出できると仮定しない。まず検証可能な中間データまたはファイルを生成し、提出接続は`erp-sg-integrations`で別途扱う。
+Do not assume d6e can submit directly to ACRA or IRAS. First generate verifiable intermediate data or files, and handle submission connectivity separately in `erp-sg-integrations`.

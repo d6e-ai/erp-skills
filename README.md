@@ -1,10 +1,12 @@
 # erp-skills
 
-`erp-skills` は、[d6e](https://github.com/d6e-ai/d6e) を基盤として日本およびシンガポール向けの基幹システムを設計・構築するための Agent Skills リポジトリです。
+`erp-skills` is an Agent Skills repository for designing and building Japan and Singapore ERP systems on [d6e](https://github.com/d6e-ai/d6e).
 
-これらのスキルは、d6e のワークスペース分離された PostgreSQL、SQL 実行、STF、Workflow、Policy、外部サービス連携を利用することを前提とします。独立した ERP データベースや、旧 `trebit` の Git/YAML 台帳を再実装するためのものではありません。
+These skills assume d6e workspace-isolated PostgreSQL, SQL execution, STF, Workflow, Policy, and external-service integrations. They do not reimplement an independent ERP database or the legacy `trebit` Git/YAML ledger.
 
-現在の設計方針は [docs/design.md](docs/design.md) を参照してください。
+See [docs/design.md](docs/design.md) for the accepted design.
+
+Repository documentation is written in English by default. Japan-specific skill content under `skills/jp/` may be written in Japanese.
 
 ## Current layout
 
@@ -22,4 +24,4 @@ skills/
     └── erp-migrate-trebit/   # planned
 ```
 
-`erp-core`、`erp-jp-accounting`、`erp-sg-accounting`を最初の実装単位とします。`integrations`と旧`trebit`移行は、内容を実装するときにディレクトリを追加し、空のプレースホルダーは作成しません。
+The initial implementation units are `erp-core`, `erp-jp-accounting`, and `erp-sg-accounting`. Add the integration and legacy `trebit` migration directories only when their content is implemented; do not create empty placeholders.

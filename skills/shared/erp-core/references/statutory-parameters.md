@@ -1,52 +1,52 @@
 # Statutory parameter management
 
-税率、控除割合、金額上限、提出・発行期限、給与率表、申告様式やtaxonomyのversionを、業務ロジックと制度説明から分離して管理する。
+Separate statutory rates, recoverable proportions, monetary thresholds, filing or issue deadlines, payroll rate tables, and form or taxonomy versions from business logic and regulatory prose.
 
 ## Two layers
 
-1. 国別`references/parameter-inventory.md`は、公式情報の変更を発見・レビューし、d6eへ投入するためのseed inventoryである。
-2. d6e SQLの`law_params`または同等の短い名前の表は、STFが実行時に読むsystem of recordである。
+1. Each country's `references/parameter-inventory.md` is a seed inventory for detecting and reviewing official changes before loading them into d6e.
+2. A short d6e SQL table such as `law_params` is the runtime system of record read by STFs.
 
-Markdownを実行時の正本にしたり、STFがリポジトリを読めると仮定したりしない。反対に、d6e上の値だけを更新して根拠とレビュー履歴を失わない。
+Do not treat Markdown as the runtime source of truth or assume that an STF can read the repository. Conversely, do not update only d6e and lose the source and review history.
 
 ## Inventory contract
 
-各エントリーには最低限次を持たせる。国別inventoryは、この契約と同じ列を持つ機械処理可能な表にする。表示上二つの表へ分ける場合も、`key`と`version`で一意に結合できなければならない。
+Every entry must contain at least the following fields. A country inventory must be a machine-processable table with the same fields. If presentation splits the entry across two tables, `key` and `version` must join them uniquely.
 
 | Field | Meaning |
 | --- | --- |
-| `key` | 国・制度・用途を含む安定ID。同じパラメーターの世代が変わっても変更しない |
-| `version` | 同じkeyとscope内の版。`v1`などを`key`へ埋め込まない |
-| `value_type` | `numeric`、`date`、`version`、`dataset`など |
-| `value` | `value_type`に対応する小数、整数、日付、version、またはdataset識別子 |
-| `unit` | `ratio`、`JPY`、`SGD`、`days`、`years`、`date`、`version`など |
-| `scope_key` / `scope` | 機械判定用の安定scope IDと、対象取引、法人、従業員区分、例外条件の説明 |
-| `anchor_type` | 適用期間を判定する日付の種類。`transaction_date`、`tax_period_start`、`pay_date`、`filing_date`など |
-| `effective_from` / `effective_to` | ISO DATEの適用期間。開始を含み、終了を含まない。未確定なら空欄かつ`verify`にする |
-| `status` | `active`、`future`、`expired`、`verify` |
-| `approval` | `pending`、`approved`、`rejected`。repository inventoryでは独立承認前を`pending`とする |
-| `source` | 政府・規制当局の一次情報URL |
-| `checked_on` | 内容を人またはagentが確認した日 |
-| `supersedes` | 置き換える旧エントリーの`key@version` |
-| `consumers` | 使用するSTF、帳票、Workflow、検証ケース |
+| `key` | Stable ID containing country, regime, and use; it does not change across generations of the same parameter |
+| `version` | Version within the same key and scope; do not embed suffixes such as `v1` in `key` |
+| `value_type` | A type such as `numeric`, `date`, `version`, or `dataset` |
+| `value` | Decimal, integer, date, version, or dataset identifier matching `value_type` |
+| `unit` | A unit such as `ratio`, `JPY`, `SGD`, `days`, `years`, `date`, or `version` |
+| `scope_key` / `scope` | Stable machine-readable scope ID and a description of transactions, entities, employee classes, and exceptions |
+| `anchor_type` | Date used to evaluate applicability, such as `transaction_date`, `tax_period_start`, `pay_date`, or `filing_date` |
+| `effective_from` / `effective_to` | ISO DATE applicability interval, inclusive at the start and exclusive at the end; leave blank only with `verify` status |
+| `status` | `active`, `future`, `expired`, or `verify` |
+| `approval` | `pending`, `approved`, or `rejected`; repository inventory entries remain `pending` until independently approved |
+| `source` | Primary government or regulator URL |
+| `checked_on` | Date on which a human or agent reviewed the source |
+| `supersedes` | Previous entry in `key@version` form |
+| `consumers` | STFs, reports, Workflows, and validation cases that use the entry |
 
-割合を保存するときは、`10`、`10%`、`0.10`を混在させない。d6e SQLでは`NUMERIC`の比率`0.10`など、単位ごとの表現を定める。scalarの値と適用条件を一つの自由記述へ混ぜない。複雑なCPF率表、段階適用rule、taxonomyは一つのscalarへ潰さず、安定したdataset key、dataset version、型付きの明細行を管理する。
+Do not mix `10`, `10%`, and `0.10` as representations of one ratio. Use a normalized SQL `NUMERIC` ratio such as `0.10`. Do not combine a scalar value and its applicability conditions in one free-text value. Represent complex CPF rate tables, phased rules, and taxonomies with a stable dataset key, a dataset version, and typed detail rows instead of reducing them to one scalar.
 
 ## d6e SQL model
 
-実行時の`law_params`では、少なくとも`jurisdiction`、`param_key`、`scope_key`、`version`、`value_type`、型付きの値、`unit`、`anchor_type`、半開区間の適用期間、`approval_status`、source URL、確認日を保持する。型付きの値は`num_value`、`date_value`、`text_value`、`dataset_key`などへ分け、`value_type`と対応する一つだけが設定されるよう`CHECK`する。同じkey、scope、anchorの期間重複は、d6eで利用可能なSQL制約または承認STF内の検査で拒否し、過去行を上書きしない。
+At runtime, `law_params` stores at least `jurisdiction`, `param_key`, `scope_key`, `version`, `value_type`, a typed value, `unit`, `anchor_type`, a half-open effective interval, `approval_status`, source URL, and review date. Separate typed values into columns such as `num_value`, `date_value`, `text_value`, and `dataset_key`, and use a `CHECK` constraint to require exactly the column that matches `value_type`. Reject overlapping periods for the same key, scope, and anchor through an available d6e SQL constraint or validation inside the approval STF. Never overwrite a historical row.
 
-STFは呼出側が指定した`anchor_type`と`as_of_date`に対して、承認済みの一行だけを取得する。取引日を、課税期間開始日、支払日、申告日、法人設立日などの代用にしない。該当なし、複数該当、または未承認・`verify`の行しかない場合は処理を停止する。`future`は適用日前に選ばず、`expired`は過去日付の再現時には選択可能にする。最新行ではなく、対象取引へ制度上適用される行を選ぶ。
+An STF must receive `anchor_type` and `as_of_date` from its caller and resolve exactly one approved row. Do not substitute a transaction date for a tax-period start date, payment date, filing date, incorporation date, or another statutory anchor. Stop when there is no match, multiple matches, or only unapproved or `verify` rows. Do not select `future` rows before their effective date. Permit `expired` rows when reproducing a historical date. Select the row applicable to the transaction, not simply the latest row.
 
-`tax_codes`は取引分類masterであり、法定rateのsystem of recordではない。原則として承認済み`law_params`行を参照する。監査・再現のためrateを取引や税計算結果へsnapshotする場合は、参照した`law_params`のIDとversionを必ず一緒に保存し、snapshotを次回計算の正本にしない。
+`tax_codes` is a transaction-classification master, not the system of record for statutory rates. It normally references an approved `law_params` row. When a transaction or tax calculation snapshots a rate for audit reproducibility, store the referenced `law_params` ID and version, and do not treat that snapshot as the authoritative input for a later calculation.
 
 ## Amendment workflow
 
-1. 公式一次情報で公布・施行・経過措置を確認する。
-2. 安定keyを維持したままcountry inventoryへ新versionを追加し、旧行の排他的終了日と`supersedes`を更新する。
-3. 将来値は`future`としてd6e SQLへ追加し、施行前に自動選択しない。
-4. 境界日前後、返品・取消、遡及処理、未確定条件の回帰ケースを実行する。
-5. 独立した承認後にd6e行を`approved`とし、対象STF・帳票versionを記録する。
-6. 施行後も過去取引が旧値で再現できることを確認する。
+1. Confirm enactment, commencement, and transitional provisions in an official primary source.
+2. Preserve the stable key, add a new version to the country inventory, set the old row's exclusive end date, and record `supersedes`.
+3. Add a future value to d6e SQL with `future` status, but do not select it before its effective date.
+4. Run regression cases around the boundary, including returns, cancellations, retrospective processing, and unresolved conditions.
+5. After independent approval, mark the d6e row `approved` and record the affected STF and report versions.
+6. Confirm that historical transactions still reproduce the old value after commencement.
 
-改正資料が公開されても、法令成立、施行日、企業への適用条件が未確定なら`verify`に留める。agentの判断だけで本番値を有効化しない。
+When a reform document is published but enactment, commencement, or company-specific scope remains uncertain, keep the entry in `verify` status. An agent must not activate a production value by itself.

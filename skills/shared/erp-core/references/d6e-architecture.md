@@ -4,19 +4,19 @@ Verified against the local d6e source on 2026-09-03.
 
 ## SQL execution
 
-- `d6e_sql`はワークスペース内の非修飾テーブル名を`user_data.ws_{workspace_id}_...`へ変換する。接頭辞を手書きしない。
-- ワークスペース接頭辞が40文字、PostgreSQL識別子上限が63文字のため、ユーザーテーブル名は23文字以内にする。名前は小文字で始め、小文字英数字と単一のアンダースコアだけを使う。`pg_`始まり、末尾アンダースコア、連続アンダースコア、SQL予約語は使えない。
-- 一回の`d6e_sql`呼び出しで許可されるSQL文は一文だけである。
-- 現行実装が扱うのは`CREATE TABLE`、対応範囲内の`ALTER TABLE`、`DROP TABLE`、`SELECT`、`INSERT`、`UPDATE`、`DELETE`である。
-- 現行実装は`CREATE INDEX`を受理しない。索引が必要な規模では、成功したと仮定せずd6e側の機能追加または現行バージョンの対応状況を確認する。
-- 外部キーの`ON DELETE`と`ON UPDATE`は`RESTRICT`または`NO ACTION`だけを使える。`CASCADE`、`SET NULL`、`SET DEFAULT`を前提にしない。
-- DDLはワークスペース管理者または`ddl_policy_group`のメンバーが実行する。STF内の`sql()`からDDLは実行できない。
-- DMLはPolicyの既定拒否を受ける。表を作っただけでは利用できない。
-- CTE、`UNION`などの集合演算、式内サブクエリは、すべてのテーブル名がワークスペース名へ変換されると仮定しない。会計処理では単純な一文を優先し、必要な場合は対象d6e版で`executed_sql`と拒否ケースを先に検証する。
+- `d6e_sql` rewrites unqualified workspace table names to `user_data.ws_{workspace_id}_...`. Do not write the prefix manually.
+- The workspace prefix is 40 characters and PostgreSQL identifiers are limited to 63 characters, so user table names must not exceed 23 characters. Start a name with a lowercase letter; use only lowercase letters, digits, and single underscores. Do not use a `pg_` prefix, trailing underscore, consecutive underscores, or SQL reserved word.
+- Each `d6e_sql` call may contain only one SQL statement.
+- The reviewed implementation supports `CREATE TABLE`, supported forms of `ALTER TABLE`, `DROP TABLE`, `SELECT`, `INSERT`, `UPDATE`, and `DELETE`.
+- The reviewed implementation does not accept `CREATE INDEX`. At a scale that requires indexes, verify support in the target d6e version or report the need for a d6e platform enhancement instead of assuming success.
+- Foreign-key `ON DELETE` and `ON UPDATE` actions may use only `RESTRICT` or `NO ACTION`. Do not depend on `CASCADE`, `SET NULL`, or `SET DEFAULT`.
+- DDL requires a workspace administrator or a member of `ddl_policy_group`. An STF cannot execute DDL through `sql()`.
+- DML is subject to default-deny Policy enforcement. Creating a table does not make it usable.
+- Do not assume that every table name in a CTE, set operation such as `UNION`, or expression subquery will be rewritten to a workspace name. Prefer simple statements for accounting operations. When a complex statement is necessary, validate `executed_sql` and denied cases on the target d6e version first.
 
 ## Columns
 
-d6eの一部ドキュメントにはシステム列を自動追加する記述があるが、確認した現行SQL変換コードは列を注入しない。次のような必要列はDDLで明示する。
+Some d6e documentation describes automatically added system columns, but the reviewed SQL transformation code does not inject columns. Define required fields explicitly in DDL, for example:
 
 ```sql
 id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -25,34 +25,34 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 deleted_at TIMESTAMPTZ
 ```
 
-対象インスタンスの`executed_sql`と実テーブルを確認し、挙動が変わっている場合は実行結果を優先する。
+Inspect `executed_sql` and the actual table on the target instance. If behavior differs, trust the execution result.
 
-`updated_at`を自動更新するトリガーも前提にしない。更新SQLで`updated_at = now()`を明示する。
+Do not assume that a trigger updates `updated_at`. Set `updated_at = now()` explicitly in update SQL.
 
 ## STF runtime
 
-- STFコードは関数宣言で包まず、トップレベルに書き、最後に`return`する。
-- `$input`は入力、`$caller`は認証済みユーザーIDまたは`null`、`$sources`はWorkflowの入力ステップである。
-- `sql(query)`は引数を一つだけ取る。`SELECT`は行配列、DMLは影響行数を返す。
-- 一つのSTF内のSQL呼び出しは一つのDBトランザクションを共有する。転記の検証と全明細の書込みを同じSTFに置く。
-- 保存済みSTFのSQL権限はSTF主体に対するPolicyで与える。即時実行コードは呼出ユーザー主体のPolicyを受ける。
-- 入力値をSQL文字列へ直接補間しない。UUID、日付、列挙値、金額を形式検証し、文字列リテラルはPostgreSQL規則でエスケープする。識別子は固定の許可リストからだけ選ぶ。
-- `NUMERIC`はSQL内では正確でも、`SELECT`結果はJSONを経由する。STFへ金額を返すときは`amount::text`のように文字列化し、JavaScriptの`Number`へ変換しない。
+- Write STF code at the top level without wrapping it in a function declaration, and finish with `return`.
+- `$input` is the input, `$caller` is the authenticated user ID or `null`, and `$sources` contains Workflow input steps.
+- `sql(query)` accepts one argument. `SELECT` returns an array of rows; DML returns an affected-row count.
+- SQL calls inside one STF share one database transaction. Keep posting validation and all related writes in the same STF.
+- A saved STF receives SQL permission through Policies for the STF subject. Instant execution uses the calling user's Policies.
+- Never interpolate input directly into SQL. Validate UUIDs, dates, enum values, and monetary formats; escape string literals using PostgreSQL rules; select identifiers only from a fixed allowlist.
+- `NUMERIC` remains exact inside SQL, but results pass through JSON. Cast monetary values to text, such as `amount::text`, before returning them to an STF, and do not convert them to JavaScript `Number` values.
 
 ## Workflow runtime
 
-- 単一のQJS STFで完結する処理をWorkflowで包まない。
-- Workflowの各STFは個別トランザクションで動く。複数STFにまたがる原子的コミットを仮定しない。
-- 監査上再現性が必要なWorkflowではSTF/Effectのバージョンを固定する。それ以外は最新版追従の影響を明示する。
-- field mappingの変数パスは`$input`、`$sources`、`$steps[n]`から始める。
+- Do not wrap work that fits in one QJS STF inside a Workflow.
+- Each STF in a Workflow runs in a separate transaction. Do not assume an atomic commit across multiple STFs.
+- Pin STF and Effect versions in a Workflow when audit reproducibility requires it. Otherwise, state the impact of following the latest version.
+- Field-mapping variable paths begin with `$input`, `$sources`, or `$steps[n]`.
 
 ## Verification
 
-作成を報告する前に、実際のツール結果で次を確認する。
+Before reporting a completed implementation, verify with actual tool results that:
 
-1. テーブルと制約が存在する。
-2. 対象主体が許可された操作を実行できる。
-3. 対象外主体が拒否される。
-4. 正常仕訳が転記できる。
-5. 不均衡、締め期間、重複source keyが拒否される。
-6. 残高と帳票集計が既知の数値例に一致する。
+1. Tables and constraints exist.
+2. An intended subject can perform each allowed operation.
+3. An out-of-scope subject is denied.
+4. A valid balanced journal can be posted.
+5. An unbalanced journal, closed period, and duplicate source key are rejected.
+6. Balances and report aggregates match a known numerical example.

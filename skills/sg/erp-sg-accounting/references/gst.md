@@ -4,7 +4,7 @@ Official information reviewed: 2026-09-03. Re-check rates, thresholds, transitio
 
 ## Current baseline
 
-現行GST rateと適用開始日は[parameter-inventory.md](parameter-inventory.md)を参照する。取引日だけで機械的に決めず、time of supply、transitional rule、supply classification、登録状態を考慮する。
+Refer to [parameter-inventory.md](parameter-inventory.md) for the current GST rate and its effective date. Do not determine the applicable rate mechanically from the transaction date alone; consider the time of supply, transitional rules, supply classification, and registration status.
 
 Official sources:
 
@@ -14,31 +14,31 @@ Official sources:
 
 ## SQL data requirements
 
-`tax_codes`または同等の表に次を保持する。
+Store the following in `tax_codes` or an equivalent table:
 
-- jurisdiction=`SG`
-- standard-rated、zero-rated、exempt、out-of-scope等の分類
-- output tax、input tax、reverse chargeなどのdirection
-- rateとrecoverable proportionを解決する`law_params`参照、適用条件を示すrule ID
-- `effective_from`、`effective_to`、根拠URL、確認日
-- rounding method、currency conversion rule ID
+- `jurisdiction = 'SG'`
+- classification such as standard-rated, zero-rated, exempt, or out-of-scope
+- direction such as output tax, input tax, or reverse charge
+- a `law_params` reference that resolves the rate and recoverable proportion, plus a rule ID that identifies the applicable conditions
+- `effective_from`, `effective_to`, source URL, and verification date
+- rounding method and currency-conversion rule ID
 
-rateやthresholdを過去行の上書きで変更しない。取引へrateをsnapshotするときは、参照した`law_params`行のIDとversionも保存する。
+Do not change a rate or threshold by overwriting a historical row. When snapshotting a rate on a transaction, also store the ID and version of the referenced `law_params` row.
 
 ## Transaction requirements
 
-GST集計から次へ遡れるようにする。
+Make every GST aggregation traceable to:
 
-- supplier/customer、GST registration number
-- supply date、invoice date、posting date、accounting period
-- supply classification、exclusive amount、GST amount、inclusive amount
-- transaction currencyとGST purposeのSGD amounts
-- exchange rate、rate date、rate source
-- tax invoice、credit/debit note、receipt、import evidence
-- input tax claim statusとreview reason
+- supplier or customer and GST registration number
+- supply date, invoice date, posting date, and accounting period
+- supply classification, exclusive amount, GST amount, and inclusive amount
+- transaction-currency amounts and SGD amounts for GST purposes
+- exchange rate, rate date, and rate source
+- tax invoice, credit or debit note, receipt, and import evidence
+- input-tax claim status and review reason
 
 ## Calculation control
 
-IRASは複数品目のGSTについて、品目ごとの計算後に合計する方法と、税抜合計へ税率を適用する方法を案内している。選択した方法とroundingを一貫して適用し、invoiceに保存する。
+IRAS describes both summing GST calculated for individual line items and applying the rate to the total amount excluding tax. Apply the selected method and rounding consistently, and store them on the invoice.
 
-税額STFは有効なtax codeをSQLから選び、使用rate、exclusive amount、GST、inclusive amount、rounding deltaを返す。不明なclassificationやclaim eligibilityを自動でstandard-ratedまたはclaimableにしない。
+The tax-calculation STF must select a valid tax code from SQL and return the rate used, exclusive amount, GST amount, inclusive amount, and rounding delta. Never default an unknown classification or claim eligibility to standard-rated or claimable.

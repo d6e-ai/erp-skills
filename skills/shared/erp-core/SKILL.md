@@ -6,61 +6,61 @@ description: >-
 
 # d6e ERP core
 
-d6eのワークスペース内PostgreSQLをsystem of recordとして、再利用可能な基幹会計の中核を設計・構築する。
+Design and build a reusable core ERP accounting system with PostgreSQL inside a d6e workspace as the system of record.
 
 ## Platform boundary
 
-- データ定義、保存、検索、集計には`d6e_sql`を使う。SQLを書く前に組み込み`d6e-sql`スキルを読む。
-- 再利用する業務更新は保存済みSTFにし、作成前に組み込み`d6e-stf`スキルを読み、`d6e_instant_run_stf`で検証する。
-- 複数のSTF、入力、ファイル、Effectを連結するときだけWorkflowを作り、組み込み`d6e-workflow`スキルに従う。
-- DMLの前にPolicyとPolicy Groupを設計し、組み込み`d6e-policy`スキルに従う。
-- d6eとは別のDB、ORM、APIサーバー、またはGit/YAML台帳を作らない。必要性が生じた場合は実装せず、プラットフォームギャップとして報告する。
+- Use `d6e_sql` for data definition, storage, retrieval, and aggregation. Read the built-in `d6e-sql` skill before writing SQL.
+- Implement reusable business updates as saved STFs. Read the built-in `d6e-stf` skill first and validate code with `d6e_instant_run_stf`.
+- Create a Workflow only when connecting multiple STFs, inputs, files, or Effects, and follow the built-in `d6e-workflow` skill.
+- Design Policy and Policy Groups before DML and follow the built-in `d6e-policy` skill.
+- Do not create a database, ORM, API server, or Git/YAML ledger outside d6e. If one becomes necessary, report it as a platform gap instead of implementing it implicitly.
 
-現在のd6e SQL制約を扱うときは[references/d6e-architecture.md](references/d6e-architecture.md)を読む。
+Read [references/d6e-architecture.md](references/d6e-architecture.md) when working with current d6e SQL constraints.
 
 ## Accounting model
 
-少なくとも次の概念を明示する。
+Define at least the following concepts:
 
-- 法人または帳簿単位
-- 機能通貨と取引通貨
-- 会計期間と締め状態
-- 勘定科目と通常残高
-- 仕訳ヘッダーと複数の仕訳明細
-- 取引先、税区分、原始証憑への参照
-- 転記、取消、訂正、外部取込の冪等性
+- Legal entity or ledger unit
+- Functional and transaction currencies
+- Accounting periods and close states
+- Accounts and normal balances
+- Journal headers with multiple journal lines
+- Partners, tax classifications, and source-document references
+- Idempotent posting, reversal, correction, and external import
 
-具体的なテーブル境界とSQL設計には[references/accounting-model.md](references/accounting-model.md)を使う。
+Use [references/accounting-model.md](references/accounting-model.md) for concrete table boundaries and SQL design.
 
-複式簿記は、一つの取引を複数の勘定へ記録し、借方合計と貸方合計を一致させる方式である。例えば税抜100、税10の売上を掛けで計上する場合、借方の売掛金110に対し、貸方の売上100と税預り10を記録する。合計は両側とも110になる。
+Double-entry bookkeeping records a transaction across multiple accounts and requires total debits to equal total credits. For example, a credit sale with a net amount of 100 and tax of 10 records accounts receivable of 110 on the debit side, and revenue of 100 plus tax payable of 10 on the credit side. Both sides total 110.
 
 ## Non-negotiable invariants
 
-- 転記済み仕訳を上書きまたは物理削除しない。誤りは反対仕訳と正しい新規仕訳で訂正し、相互参照を保存する。
-- 借方合計と貸方合計を仕訳通貨ごとに一致させる。基準通貨額を保持する場合は、その合計も一致させる。
-- 締め済み期間への新規転記を拒否する。再オープンは独立した権限付き操作にする。
-- 同じ外部イベントを二重転記しないよう、source systemとsource keyの一意性を保証する。
-- 金額計算に浮動小数点数を使わない。SQLは`NUMERIC`、STFは文字列または整数最小単位を境界として扱う。
-- 税率、給与率、申告様式などの時点依存値には適用開始日と適用終了日を持たせる。
-- 法定の数値・期限・バージョンは国別parameter inventoryへ集約し、STFや制度説明へ重複記載しない。実行時はd6e SQLの承認済み適用日付きマスタから読む。
-- 投稿者、投稿時刻、原始証憑、取消元、外部識別子を追跡できるようにする。
+- Never overwrite or physically delete a posted journal. Correct an error with a reversing journal and a new correct journal, preserving cross-references.
+- Balance debits and credits in each journal currency. If functional-currency amounts are stored, balance those totals too.
+- Reject posting into a closed period. Reopening must be a separate privileged operation.
+- Prevent duplicate posting of the same external event with a unique source-system and source-key pair.
+- Never use floating-point numbers for monetary calculations. Use SQL `NUMERIC`; pass strings or integer minor units across the STF boundary.
+- Give every time-dependent tax rate, payroll rate, form version, and similar parameter effective start and end dates.
+- Centralize statutory numbers, deadlines, and versions in country parameter inventories instead of duplicating them in STF code or regulatory prose. At runtime, read an approved, effective-dated d6e SQL master.
+- Preserve the poster, posting time, source document, reversed journal, and external identifiers for auditability.
 
 ## Implementation workflow
 
-1. 現在のワークスペース、既存テーブル、Policy、STF、Workflowを読み取り、再利用・移行・新設を区別する。
-2. 法人、機能通貨、会計年度、必要な国別スキル、外部system of recordを確定する。不明な法的選択は推測しない。
-3. 短いテーブル名、キー、外部キー、`CHECK`、`UNIQUE`を設計する。DDLは`d6e_sql`で一文ずつ実行する。
-4. 最小権限のPolicy Groupと、表・操作ごとのPolicyを作る。STFにも必要な表だけを許可する。
-5. 転記、取消、締め、再オープン、取込をSTFとして実装する。関連する検証と書込みを一つのSTFトランザクション内に置く。
-6. 複数ステップまたは外部連携が必要な場合だけWorkflowを作る。
-7. 残高、試算表、損益、財政状態、税集計、未消込を`d6e_sql`で照合する。
-8. 実際に実行したツール結果と、未検証の制度・外部接続を分けて報告する。
+1. Inspect the current workspace, tables, Policies, STFs, and Workflows, then distinguish reuse, migration, and new construction.
+2. Confirm the legal entity, functional currency, fiscal year, required country skill, and external systems of record. Do not guess unresolved legal choices.
+3. Design short table names, keys, foreign keys, `CHECK` constraints, and `UNIQUE` constraints. Execute each DDL statement separately with `d6e_sql`.
+4. Create least-privilege Policy Groups and Policies per table and operation. Give each STF access only to the tables it needs.
+5. Implement posting, reversal, close, reopen, and import as STFs. Keep related validation and writes in one STF transaction.
+6. Create a Workflow only for multi-step work or external integration.
+7. Reconcile balances, trial balance, profit and loss, financial position, tax summaries, and open items with `d6e_sql`.
+8. Report observed tool results separately from unverified regulations or external connections.
 
-認可設計には[references/authorization.md](references/authorization.md)、STFとWorkflowの分担には[references/workflow-patterns.md](references/workflow-patterns.md)を使う。
-法定パラメーターのデータ契約と改正反映手順には[references/statutory-parameters.md](references/statutory-parameters.md)を使う。
+Use [references/authorization.md](references/authorization.md) for authorization design and [references/workflow-patterns.md](references/workflow-patterns.md) for the STF and Workflow boundary.
+Use [references/statutory-parameters.md](references/statutory-parameters.md) for the statutory-parameter data contract and amendment workflow.
 
 ## Country routing
 
-- 日本の税、請求、給与、保存、法定報告は`erp-jp-accounting`を使う。
-- シンガポールのGST、請求、給与、保存、ACRA/IRAS報告は`erp-sg-accounting`を使う。
-- 制度情報は時点依存である。外部変更を書き込む前に、該当する国別スキルが示す公式情報を確認する。
+- Use `erp-jp-accounting` for Japan tax, invoicing, payroll, retention, and statutory reporting. Its content may be in Japanese.
+- Use `erp-sg-accounting` for Singapore GST, invoicing, payroll, retention, and ACRA or IRAS reporting.
+- Regulatory information is time-dependent. Before an external change is written, verify the official sources identified by the relevant country skill.

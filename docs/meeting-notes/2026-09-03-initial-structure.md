@@ -4,13 +4,13 @@ Date: 2026-09-03
 
 ## Decisions
 
-- `trebit` は廃止し、今後の基幹システムは d6e を基盤として構築する。
-- ERP データの定義、保存、検索、集計には d6e の `d6e_sql` と組み込み `d6e-sql` スキルを使う。
-- 業務ロジックは SQL に加えて STF、Workflow、Policy、既存 SaaS integration を適切に組み合わせる。
-- 国別スキルは `skills/jp/` と `skills/sg/` に分ける。
-- 各国の初期スキルは `accounting` と `integrations` に相当する大項目に留める。
-- 税、請求、給与、法定報告、記録保存などの詳細は、まず各スキルの `references/` に分ける。
-- 個別領域は、独立した利用場面や大きなコンテキストが確認できた場合だけ別スキルにする。
-- Trebitからのデータ移行は `erp-migrate-trebit` に隔離し、新規ERPの通常運用を依存させない。
+- Retire `trebit` and build future ERP systems on d6e.
+- Use d6e `d6e_sql` and the built-in `d6e-sql` skill for ERP data definition, storage, retrieval, and aggregation.
+- Combine SQL with STF, Workflow, Policy, and existing SaaS integrations as appropriate for business logic.
+- Separate country-specific skills under `skills/jp/` and `skills/sg/`.
+- Begin each country with broad areas corresponding to `accounting` and `integrations`.
+- Split tax, invoicing, payroll, statutory reporting, record retention, and similar details into each skill's `references/` first.
+- Create another skill only after an area demonstrates an independent use case or a large context requirement.
+- Isolate Trebit data migration in `erp-migrate-trebit`; do not make new ERP operation depend on it.
 
-現在の規範的な構成と実装原則は [`docs/design.md`](../design.md) を正本とする。
+[`docs/design.md`](../design.md) is the normative source for the current structure and implementation principles.

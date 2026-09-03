@@ -4,39 +4,43 @@ Status: Accepted
 
 ## Purpose
 
-このリポジトリは、d6e を基盤として日本およびシンガポール向けの基幹システムを構築するための Agent Skills を提供する。
+This repository provides Agent Skills for building Japan and Singapore ERP systems on d6e.
 
-旧 `trebit` は廃止する。`trebit` の実装を継続開発したり、Git コミットされた YAML を write model とする台帳を d6e 上に再現したりしない。複式簿記、仕訳の均衡、多通貨、試算表、損益計算書、貸借対照表など、有効な会計概念だけを d6e 向けの設計へ引き継ぐ。
+The legacy `trebit` system is retired. Do not continue its implementation or recreate a ledger on d6e that uses Git-committed YAML as its write model. Carry forward only valid accounting concepts, including double-entry bookkeeping, balanced journals, multiple currencies, trial balances, income statements, and balance sheets, and redesign them for d6e.
+
+## Language policy
+
+English is the default language for the repository, general documentation, shared skills, Singapore skills, migration skills, and integration skills. Japan-specific skill content under `skills/jp/` may use Japanese when it improves regulatory accuracy and usability.
 
 ## d6e-first architecture
 
-ERP データの system of record は d6e ワークスペース内の PostgreSQL テーブルとする。スキルは次の d6e 機能を組み合わせて実装案を生成する。
+PostgreSQL tables inside each d6e workspace are the ERP system of record. Skills combine the following d6e capabilities when generating an implementation.
 
 | Concern | d6e capability |
 | --- | --- |
-| スキーマ、マスタ、伝票、元帳、検索、集計 | `d6e_sql` / built-in `d6e-sql` skill |
-| 仕訳生成、検証、状態遷移、原子的な更新 | STF |
-| 承認、取込、照合、通知、外部連携の複数ステップ処理 | Workflow |
-| ユーザー、職務、STFごとのアクセス制御 | Policy / Policy Group |
-| 会計・請求・銀行などの外部サービス | d6e SaaS integrations / Effect |
+| Schemas, master data, documents, ledgers, retrieval, and aggregation | `d6e_sql` / built-in `d6e-sql` skill |
+| Journal generation, validation, state transitions, and atomic updates | STF |
+| Multi-step approval, import, reconciliation, notification, and external integration | Workflow |
+| Access control by user, duty, and STF | Policy / Policy Group |
+| External accounting, invoicing, and banking services | d6e SaaS integrations / Effect |
 
-通常の ERP 機能のために、d6e と別のデータベース、ORM、API サーバー、または独自台帳エンジンを設けない。d6e の SQL で表現できない要件が見つかった場合は、別基盤を暗黙に追加せず、制約と代替案を設計判断として記録する。
+Do not create a separate database, ORM, API server, or custom ledger engine for ordinary ERP functionality. If d6e SQL cannot represent a requirement, record the constraint and alternatives as a design decision instead of silently adding another platform.
 
 ### SQL design requirements
 
-- d6e のワークスペース分離とテーブル名変換を前提とする。
-- DDL、DML、検索、集計は `d6e_sql` を基本経路とし、SQLパターンはd6e組み込みの `d6e-sql` スキルに従う。
-- テーブル名は、ワークスペース接頭辞を含めて PostgreSQL の識別子長制限に収まるよう、23文字以内を原則とする。
-- d6e がシステム列を自動付与すると仮定しない。現行実装では必要な `id`、`created_at`、`updated_at`、`deleted_at` を明示的に定義する。対象インスタンスで挙動が変わっている場合は、実行結果を優先する。
-- 金額には浮動小数点数を使わず、通貨の最小単位または精度を明示した `NUMERIC` を使う。
-- 会計イベント、元帳への転記、期間締め、取消・訂正は、追跡可能で再検証できるデータモデルにする。
-- 仕訳の借方・貸方合計、通貨、会計期間、参照先の存在などをデータベース制約と STF の両方で防御する。
-- 読み取り、登録、更新、削除ごとに必要な Policy を定義し、無許可時は既定拒否とする。
-- 継続利用する業務更新は、対話から任意の更新SQLを直接実行させるのではなく、入力検証と認可を備えたSTFまたはWorkflowとして公開する。
+- Design for d6e workspace isolation and table-name rewriting.
+- Use `d6e_sql` as the normal path for DDL, DML, retrieval, and aggregation. Follow the built-in `d6e-sql` skill for SQL patterns.
+- Keep table names at or below 23 characters so the workspace prefix still fits within PostgreSQL's identifier limit.
+- Do not assume that d6e automatically adds system columns. The current implementation requires explicit columns such as `id`, `created_at`, `updated_at`, and `deleted_at`. If the target instance behaves differently, trust observed execution results.
+- Do not use floating-point numbers for money. Use integer minor units or `NUMERIC` with explicit precision.
+- Make accounting events, ledger posting, period close, reversals, and corrections traceable and reproducible.
+- Defend journal balance, currency, accounting period, and referenced-record existence with both database constraints and STF validation.
+- Define the required Policy for select, insert, update, and delete operations. Default to denial when authorization is absent.
+- Expose recurring business updates through an STF or Workflow with input validation and authorization instead of relying on arbitrary update SQL from a conversation.
 
 ## Repository structure
 
-初期構成は、共通、日本、シンガポール、移行の4領域とする。
+The initial structure has four areas: shared, Japan, Singapore, and migration.
 
 ```text
 skills/
@@ -94,29 +98,29 @@ skills/
             └── reconciliation.md
 ```
 
-このツリーは計画上の構成であり、空ディレクトリは作らない。各スキルと参照資料は、内容を作成する段階で追加する。
+This tree describes the planned structure. Do not create empty directories. Add each skill and reference only when its content is implemented.
 
 ## Skill boundaries
 
 ### `erp-core`
 
-国に依存しない d6e 実装原則を扱う。SQL スキーマ設計、複式簿記の基本モデル、マスタ、権限、監査、STF、Workflow の構成を含む。
+Country-neutral d6e implementation principles, including SQL schema design, the core double-entry model, master data, authorization, auditing, STF, and Workflow composition.
 
 ### `erp-jp-accounting` and `erp-sg-accounting`
 
-国別の基幹会計を扱う。税、請求、給与、法定報告、保存要件は、当初は個別スキルにせず `references/` へ分離する。個別領域が独立したトリガー、実装フロー、または大きなコンテキストを必要とすることが確認できた場合のみ、別スキルへ昇格する。
+Country-specific ERP accounting. Initially separate tax, invoicing, payroll, statutory reporting, and retention requirements into `references/`, not individual skills. Promote an area to another skill only after it demonstrates an independent trigger, implementation workflow, or large context requirement.
 
 ### `erp-jp-integrations` and `erp-sg-integrations`
 
-外部サービスと d6e SQL データモデルの対応、同期方向、識別子、冪等性、照合、エラー処理を扱う。外部APIの一般的なリファレンスは複製せず、利用可能な d6e 組み込みSaaSスキルを参照する。
+Mappings between external services and the d6e SQL data model, synchronization direction, identifiers, idempotency, reconciliation, and error handling. Do not duplicate general external API references; use an available built-in d6e SaaS skill.
 
 ### `erp-migrate-trebit`
 
-旧 `trebit` のデータを d6e SQL スキーマへ移行し、残高と帳票を照合する期間限定のスキルとする。新規ERPの通常運用はこのスキルへ依存させない。
+A temporary skill for moving legacy `trebit` data into the d6e SQL schema and reconciling balances and reports. Normal operation of a new ERP must not depend on it.
 
 ## Skill package shape
 
-各スキルは、原則として次の形を取る。
+Use the following shape by default.
 
 ```text
 erp-sg-accounting/
@@ -124,34 +128,34 @@ erp-sg-accounting/
 ├── references/
 │   ├── topic-a.md
 │   └── topic-b.md
-└── assets/              # 出力へコピーする実物が必要な場合のみ
+└── assets/              # only when a real artifact must be copied into output
 ```
 
-- `SKILL.md` には適用条件、主要な判断手順、重要な不変条件、必要な参照ファイルへの案内を書く。
-- 詳細な制度、SQLスキーマ、仕訳例、ワークフロー、受入条件は `references/` に置く。
-- 国別ルールには根拠となる公式情報と確認日を記録し、時点依存の値には適用開始日を付ける。
-- 税率、控除割合、金額上限、期限、率表・様式バージョンなどは、国別の `references/parameter-inventory.md` に集約する。制度説明の参照ファイルは値を重複せず、世代をまたいで安定したインベントリのkeyを参照する。
-- リポジトリ上のインベントリは変更把握とレビューのための機械処理可能なseedであり、実行時の正本はd6e SQLの法定パラメーターマスタとする。取引日、課税期間開始日、支払日、申告日などの適用基準を区別し、承認済みの有効期間行を一意に選ぶ。
-- `tax_codes`は取引分類masterとし、法定rateの正本を重複保持しない。計算結果へrateをsnapshotするときは、参照した法定パラメーター行とversionを記録する。
-- 法改正では既存値を上書きせず、将来行を追加し、適用開始前に回帰テストと承認を完了する。
-- `assets/` は請求書雛形など、生成結果へ実際にコピーするものがある場合だけ作る。
-- スキル内の `scripts/` は d6e へのインストール時に利用されないため、実行時の必須要素にしない。
+- Put invocation conditions, key decision steps, critical invariants, and reference routing in `SKILL.md`.
+- Put detailed regulations, SQL schemas, journal examples, workflows, and acceptance criteria in `references/`.
+- Record authoritative sources and review dates for country-specific rules, and add effective dates to time-dependent values.
+- Collect statutory rates, recoverable proportions, monetary thresholds, deadlines, rate-table versions, and form versions in each country's `references/parameter-inventory.md`. Regulatory prose must refer to stable inventory keys instead of duplicating values.
+- A repository inventory is a machine-processable seed for change detection and review. The runtime system of record is a d6e SQL statutory-parameter master. Distinguish transaction dates, tax-period start dates, payment dates, filing dates, and other applicability anchors, and select exactly one approved effective-period row.
+- Treat `tax_codes` as a transaction-classification master, not another authoritative source for statutory rates. When a calculation snapshots a rate, record the referenced statutory-parameter row and version.
+- Do not overwrite an existing statutory value after an amendment. Add a future row and complete regression tests and approval before its effective date.
+- Create `assets/` only for real artifacts, such as an invoice template, that generated output must copy.
+- Skill-local `scripts/` are not installed into d6e. Do not make them runtime dependencies.
 
 ## Naming
 
-- 共通スキル: `erp-core`
-- 日本向け: `erp-jp-*`
-- シンガポール向け: `erp-sg-*`
-- 移行用: `erp-migrate-*`
-- スキル名は小文字、数字、ハイフンのみを使い、64文字以内とする。
-- `d6e-*` は d6e 組み込みスキル用の予約接頭辞なので使用しない。
+- Shared skill: `erp-core`
+- Japan skills: `erp-jp-*`
+- Singapore skills: `erp-sg-*`
+- Migration skills: `erp-migrate-*`
+- Use only lowercase letters, digits, and hyphens in skill names, with a maximum of 64 characters.
+- Do not use `d6e-*`; that prefix is reserved for built-in d6e skills.
 
 ## Deferred decisions
 
-次の内容は、個別スキルを実装するときに決める。
+Decide the following while implementing the relevant skill:
 
-- 最初に実装する国と業務フロー
-- 標準勘定科目と企業ごとの拡張方法
-- 会計イベントから仕訳への具体的なマッピング
-- 外部サービスごとの同期方向と source of truth
-- Trebitから移行する実データの形式、件数、照合基準
+- The first country and business workflow to implement
+- The standard chart of accounts and company-specific extension model
+- Concrete mappings from accounting events to journals
+- Synchronization direction and source of truth for each external service
+- The actual legacy Trebit data formats, record counts, and reconciliation criteria

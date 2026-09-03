@@ -1,33 +1,39 @@
 # Repository instructions
 
-このリポジトリで作業する前に、`docs/design.md` を読むこと。設計変更時は、合意済みの現在形を `docs/design.md` に反映し、議論や日付付きの判断記録は `docs/meeting-notes/` に分離すること。
+Read `docs/design.md` before working in this repository. When the design changes, update the accepted current state in `docs/design.md` and keep discussions and dated decision records under `docs/meeting-notes/`.
+
+## Language
+
+- Use English for repository instructions, general documentation, shared skills, Singapore skills, migration skills, and future integration skills.
+- Japanese content is allowed only under `skills/jp/`, where Japanese improves the accuracy and usability of Japan-specific accounting and statutory guidance.
+- Keep code identifiers, SQL names, product names, and official terminology unchanged when translation would reduce precision.
 
 ## Platform boundary
 
-- このリポジトリのスキルは d6e 上で基幹システムを構築するためのものである。
-- データ定義、保存、検索、集計には d6e の `d6e_sql` を第一選択として利用し、SQL作成時は組み込みの `d6e-sql` スキルに従う。
-- トランザクションを伴う業務ロジックには d6e STF、複数ステップの処理には Workflow、認可には Policy を利用する。
-- d6e と別のデータベース、ORM、API サーバー、または台帳エンジンを、明示的な要件なしに導入しない。
-- `trebit` の Git/YAML write model、CLI、REST API、ブランチ管理を新システムの前提にしない。移行に必要な知識だけを `erp-migrate-trebit` に隔離する。
+- The skills in this repository build ERP systems on d6e.
+- Use d6e `d6e_sql` as the primary path for data definition, storage, retrieval, and aggregation, and follow the built-in `d6e-sql` skill when writing SQL.
+- Use d6e STF for transactional business logic, Workflow for multi-step processing, and Policy for authorization.
+- Do not introduce a database, ORM, API server, or ledger engine outside d6e without an explicit requirement.
+- Do not make the `trebit` Git/YAML write model, CLI, REST API, or branch management part of the new system. Isolate only the migration knowledge that remains necessary in `erp-migrate-trebit`.
 
 ## Skill organization
 
-- `skills/shared/` は国に依存しない共通事項に使う。
-- `skills/jp/` と `skills/sg/` は国別スキルを格納する。
-- 各国は当初 `accounting` と `integrations` に相当する大粒度のスキルから始める。税、請求、給与、法定報告などはまず `references/` に分け、独立した発見・実行単位が必要になった場合だけ別スキルへ分割する。
-- スキル名とスキルディレクトリ名は一致させ、`erp-core`、`erp-jp-*`、`erp-sg-*`、`erp-migrate-*` の命名を使う。
-- d6e の組み込みスキル用に予約されている `d6e-` 接頭辞を使わない。
-- `SKILL.md` は判断手順、重要な制約、参照先を簡潔に記述する。詳細な制度、データモデル、SQL パターン、受入条件は隣接する `references/` に置く。
-- 参照ファイルは、それを使うスキルのディレクトリ内に置く。リポジトリ全体の共有参照へ暗黙に依存させない。
-- 実体のないディレクトリ、サンプル、アセットを先回りして追加しない。
+- Use `skills/shared/` for country-neutral guidance.
+- Store country-specific skills under `skills/jp/` and `skills/sg/`.
+- Begin each country with broad skills corresponding to `accounting` and `integrations`. Split tax, invoicing, payroll, statutory reporting, and similar details into `references/` first, and create another skill only when the area needs an independent discovery or execution unit.
+- Keep skill names and directory names identical. Use the naming families `erp-core`, `erp-jp-*`, `erp-sg-*`, and `erp-migrate-*`.
+- Do not use the `d6e-` prefix, which is reserved for built-in d6e skills.
+- Keep decision procedures, important constraints, and reference routing concise in `SKILL.md`. Put detailed regulations, data models, SQL patterns, and acceptance criteria in adjacent `references/` files.
+- Keep a reference file inside the skill that uses it. Do not create implicit dependencies on repository-wide shared references.
+- Do not add empty directories, placeholder examples, or speculative assets.
 
 ## d6e implementation constraints
 
-- SQL テーブル名は d6e のワークスペース接頭辞を含めた PostgreSQL 識別子長制限を考慮して短くする。
-- d6e がシステム列を自動付与すると仮定しない。必要な `id`、`created_at`、`updated_at`、`deleted_at` は、対象インスタンスの挙動を確認したうえで明示的に定義する。
-- d6e の既定拒否型 Policy を前提に、必要な操作と主体を明示する。
-- 会計データでは複式簿記の均衡、期間締め、訂正、監査証跡を SQL スキーマと STF の不変条件として扱う。
-- 税率、上限額、期限、率表・様式バージョンなどの法定パラメーターを説明本文やSTFへ分散させない。国別の `references/parameter-inventory.md` に安定key、version、適用基準日、適用期間、根拠、確認日、承認状態を集約し、実行時はd6e SQLの`law_params`を正本とする。`tax_codes`は分類と参照を持ち、法定rateの別正本にしない。
-- 対話から直接更新SQLを乱用せず、再利用される業務更新は検証と認可を含むSTFまたはWorkflowとして定義する。
-- 外部会計サービスの API 仕様は既存の d6e 組み込み SaaS スキルを再利用し、このリポジトリでは ERP データとの対応関係と業務フローに集中する。
-- d6e のスキル取り込みではスキル内の `scripts/` が実行資源として利用されないため、ランタイム処理をスクリプトに依存させない。必要な処理は SQL、STF、Workflow として記述する。
+- Keep SQL table names short enough for the PostgreSQL identifier limit after d6e adds its workspace prefix.
+- Do not assume that d6e automatically adds system columns. Define required columns such as `id`, `created_at`, `updated_at`, and `deleted_at` explicitly after checking the target instance behavior.
+- Design for d6e default-deny Policy enforcement and state the permitted operation and subject explicitly.
+- Treat double-entry balance, period close, correction, and audit trails as SQL schema and STF invariants.
+- Do not scatter statutory rates, thresholds, deadlines, rate-table versions, or form versions through prose or STF code. Collect stable keys, versions, date anchors, effective periods, sources, review dates, and approval states in each country's `references/parameter-inventory.md`. Use d6e SQL `law_params` as the runtime system of record. `tax_codes` holds classifications and references, not an independent authoritative rate.
+- Do not rely on arbitrary update SQL issued from a conversation for recurring business operations. Define reusable updates as STFs or Workflows with validation and authorization.
+- Reuse existing built-in d6e SaaS skills for external accounting-service API details. Keep this repository focused on ERP mappings and business workflows.
+- d6e does not install skill-local `scripts/` as runtime resources. Express required runtime behavior in SQL, STF, or Workflow instead of depending on local scripts.

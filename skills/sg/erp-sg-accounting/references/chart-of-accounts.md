@@ -4,36 +4,36 @@ Official information reviewed: 2026-09-03.
 
 ## Design principle
 
-内部勘定科目表を、ACRA taxonomyや外部会計サービスの科目IDそのものにしない。企業のfinancial statements、GST、management reporting、ACRA XBRLへ別々にマッピングできる形でd6e SQLに保持する。
+Do not make the internal chart of accounts identical to the ACRA taxonomy or an external accounting service's account IDs. Store it in d6e SQL so it can be mapped independently to the entity's financial statements, GST reporting, management reporting, and ACRA XBRL.
 
-`accounts`には次を持たせる。
+Store the following in `accounts`:
 
-- entity ID、account code、English name、必要なら日本語名
-- asset、liability、equity、income、expenseの分類
-- debitまたはcreditのnormal side
-- parent account、display order、effective dates
-- financial statement line、GST control、management dimensionへのmapping key
-- 外部サービスIDは別mapping table
+- entity ID, account code, English name, and a Japanese name when needed
+- classification as asset, liability, equity, income, or expense
+- normal debit or credit side
+- parent account, display order, and effective dates
+- mapping keys for financial-statement lines, GST controls, and management dimensions
+- external service IDs in a separate mapping table
 
 ## Recommended control accounts
 
-- Cash and bank、trade receivables、other receivables、inventory、property/plant/equipment
-- Trade payables、accruals、borrowings、output GST、input GST、CPF and payroll payables
-- Share capital、reserves、retained earnings
-- Revenue、cost of sales、employee costs、operating expenses、finance income/cost、tax expense
+- cash and bank, trade receivables, other receivables, inventory, and property, plant and equipment
+- trade payables, accruals, borrowings, output GST, input GST, and CPF and payroll payables
+- share capital, reserves, and retained earnings
+- revenue, cost of sales, employee costs, operating expenses, finance income and costs, and tax expense
 
-これは開始点であり、会社のaccounting frameworkや業種別表示を確定するものではない。
+This is a starting point. It does not determine the entity's accounting framework or industry-specific presentation.
 
 ## Functional currency and dimensions
 
-- entityごとにfunctional currencyを設定する。
-- foreign currency amount、functional currency amount、rate、rate date、rate sourceを仕訳明細で追跡する。
-- customer、supplier、employee、bank account、fixed assetはsubledgerとして保持し、勘定科目を無制限に増やさない。
-- department、project、cost centreなどの分析軸は、元帳科目と分離する。
+- Set a functional currency for each entity.
+- Track the foreign-currency amount, functional-currency amount, rate, rate date, and rate source on journal lines.
+- Keep customers, suppliers, employees, bank accounts, and fixed assets as subledgers instead of expanding the chart of accounts without limit.
+- Keep analytical dimensions such as department, project, and cost centre separate from ledger accounts.
 
 ## Reporting mapping
 
-内部科目からfinancial statementsおよびACRA XBRL taxonomyへのmappingは、taxonomy versionとeffective dates付きで保持する。taxonomy変更時に過去mappingを上書きしない。
+Store mappings from internal accounts to financial statements and the ACRA XBRL taxonomy with taxonomy versions and effective dates. Never overwrite historical mappings when a taxonomy changes.
 
 Official starting point:
 

@@ -2,7 +2,7 @@
 
 Official information reviewed: 2026-09-03. CPF rate-table versions are listed in [parameter-inventory.md](parameter-inventory.md); rates, ceilings, and employment requirements must be re-checked for the applicable pay date and employee.
 
-給与計算と、外部payroll systemで確定した結果の会計転記を分ける。転記だけが要件なら、d6e内にCPF計算を複製しない。
+Separate payroll calculation from accounting entries for results finalized by an external payroll system. If the requirement is posting only, do not duplicate CPF calculations in d6e.
 
 Official sources:
 
@@ -16,34 +16,34 @@ Official sources:
 CPF computation depends on more than one percentage. At minimum, retain or import:
 
 - pay date and salary period
-- citizenship/PR status and SPR year
+- citizenship or PR status and SPR year
 - age band effective for the contribution month
 - Ordinary Wages and Additional Wages
-- applicable wage ceilings and contribution table version
-- employer share、employee share、rounding results
+- applicable wage ceilings and contribution-table version
+- employer share, employee share, and rounding results
 
-特定年度の値をSTFに固定しない。公式tableまたはcalculatorと照合できるeffective-dated SQL masterを使う。
+Do not hard-code values for a specific year in an STF. Use effective-dated SQL master data that can be reconciled with the official table or calculator.
 
 ## Payroll result model
 
-- payroll run ID、employee ID、period、payment date
-- basic salary、allowances、bonus、overtime、other earnings
-- employee CPF、other deductions、net salary
+- payroll run ID, employee ID, period, and payment date
+- basic salary, allowances, bonus, overtime, and other earnings
+- employee CPF, other deductions, and net salary
 - employer CPF and other employer costs
-- rate table version、calculation source、approval status
-- payment ID、journal ID、reversal run ID
+- rate-table version, calculation source, and approval status
+- payment ID, journal ID, and reversal run ID
 
-給与明細に必要な個人情報と、総勘定元帳に必要な集計を分離し、Policy Groupを分ける。
+Separate personal information required for payslips from the aggregates required for the general ledger, and assign them to separate Policy Groups.
 
 ## Posting example
 
-Gross salary S$5,000、employee deductions S$1,000、net salary S$4,000なら、概念上はdebit employee cost 5,000、credit deductions payable 1,000、credit salary payableまたはbank 4,000となる。Employer CPF等は別のdebit employee costとcredit payableとして計上する。
+For gross salary of S$5,000, employee deductions of S$1,000, and net salary of S$4,000, the conceptual entry is a debit of S$5,000 to employee costs, a credit of S$1,000 to deductions payable, and a credit of S$4,000 to salary payable or bank. Record employer CPF and similar costs separately as a debit to employee costs and a credit to a payable.
 
-この例は科目構造の説明であり、CPF eligibilityや率を確定するものではない。
+This example explains the account structure. It does not determine CPF eligibility or rates.
 
 ## Controls
 
-- payroll runを一意にして二重仕訳を拒否する。
-- CPFのtotal、employee share、employer shareとroundingを個別に保持する。
-- calculation、approval、payment、postingの主体を追跡する。
-- correction runを元runと元journalへ関連付ける。
+- Give each payroll run a unique identifier and reject duplicate posting.
+- Store total CPF, employee share, employer share, and rounding separately.
+- Track the actors responsible for calculation, approval, payment, and posting.
+- Link every correction run to the original run and original journal.

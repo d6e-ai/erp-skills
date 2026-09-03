@@ -4,18 +4,18 @@ Official information reviewed: 2026-09-03. InvoiceNow implementation phases can 
 
 ## Tax invoices
 
-発行期限、simplified tax invoiceの上限、InvoiceNowの段階日程は[parameter-inventory.md](parameter-inventory.md)を参照する。GST-registered customerへのstandard-rated supplyに発行するtax invoiceには少なくとも次を保持する。
+Refer to [parameter-inventory.md](parameter-inventory.md) for issuance deadlines, the simplified-tax-invoice limit, and the InvoiceNow phase schedule. For a standard-rated supply to a GST-registered customer, retain at least the following on the tax invoice:
 
-- “Tax Invoice”の表示
-- supplier name/addressとGST registration number
-- invoice dateと一意なinvoice number
-- customer name/address
-- goods/services description
+- the words "Tax Invoice"
+- supplier name and address, and GST registration number
+- invoice date and unique invoice number
+- customer name and address
+- description of goods or services
 - GST rate
-- total excluding GST、total GST、total including GST
-- exempt、zero-rated、その他supplyの区分別gross amount
+- total excluding GST, total GST, and total including GST
+- gross amounts classified as exempt, zero-rated, or other supplies
 
-SGD以外のinvoiceでは、少なくとも税抜合計、税込合計、GST payableをSGDへ換算し、承認されたrate sourceを追跡する。
+For an invoice not denominated in SGD, convert at least the total excluding tax, total including tax, and GST payable to SGD, and track the approved rate source.
 
 Official source:
 
@@ -23,7 +23,7 @@ Official source:
 
 ## InvoiceNow
 
-InvoiceNowはPeppol標準を基盤とするSingaporeのe-invoicing networkで、GST invoice dataのIRAS送信要件は段階導入される。対象日をコードへ固定せず、entityごとにphase、obligation start、exemption、Peppol ID、providerを保持する。
+InvoiceNow is Singapore's e-invoicing network based on the Peppol standard. Requirements to submit GST invoice data to IRAS are being introduced in phases. Do not hard-code applicable dates. Store each entity's phase, obligation start date, exemption, Peppol ID, and provider.
 
 Official sources:
 
@@ -32,11 +32,11 @@ Official sources:
 
 ## d6e workflow
 
-1. SQL上でinvoiceとtax totalsを確定する。
-2. STFで必須項目、GST classification、SGD換算、roundingを検証する。
-3. InvoiceNow payloadを、元帳とは別のoutbound recordとして作る。
-4. Effectまたは外部providerで送信し、provider message IDとresponseを保存する。
-5. 再送は同じidempotency keyを使い、仕訳を再生成しない。
-6. credit/debit noteはoriginal invoiceとoriginal journalへ関連付ける。
+1. Finalize the invoice and tax totals in SQL.
+2. Use an STF to validate required fields, GST classification, SGD conversion, and rounding.
+3. Create the InvoiceNow payload as an outbound record separate from the ledger.
+4. Submit through an Effect or external provider, and store the provider message ID and response.
+5. Reuse the same idempotency key for retries, and do not regenerate the journal entry.
+6. Link each credit or debit note to the original invoice and original journal.
 
-送信成功を会計転記成功の代用にせず、両方の状態を独立して追跡する。
+Track submission status and accounting-posting status independently. Do not treat successful submission as evidence of successful accounting posting.
