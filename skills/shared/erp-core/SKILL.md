@@ -63,4 +63,5 @@ Use [references/statutory-parameters.md](references/statutory-parameters.md) for
 
 - Use `erp-jp-accounting` for Japan tax, invoicing, payroll, retention, and statutory reporting. Its content may be in Japanese.
 - Use `erp-sg-accounting` for Singapore GST, invoicing, payroll, retention, and ACRA or IRAS reporting.
+- Use `erp-jp-integrations` or `erp-sg-integrations` for country-specific external synchronization, submission, idempotency, and reconciliation.
 - Regulatory information is time-dependent. Before an external change is written, verify the official sources identified by the relevant country skill.

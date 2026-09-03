@@ -6,11 +6,11 @@ Status: Accepted
 
 This repository provides Agent Skills for building Japan and Singapore ERP systems on d6e.
 
-The legacy `trebit` system is retired. Do not continue its implementation or recreate a ledger on d6e that uses Git-committed YAML as its write model. Carry forward only valid accounting concepts, including double-entry bookkeeping, balanced journals, multiple currencies, trial balances, income statements, and balance sheets, and redesign them for d6e.
+The legacy `trebit` system is retired. Do not continue its implementation, add a Trebit migration skill, or recreate a ledger on d6e that uses Git-committed YAML as its write model. Carry forward only valid accounting concepts through `erp-core`, including double-entry bookkeeping, balanced journals, multiple currencies, trial balances, income statements, and balance sheets, and redesign them for d6e.
 
 ## Language policy
 
-English is the default language for the repository, general documentation, shared skills, Singapore skills, migration skills, and integration skills. Japan-specific skill content under `skills/jp/` may use Japanese when it improves regulatory accuracy and usability.
+English is the default language for the repository, general documentation, shared skills, Singapore skills, and integration skills. Japan-specific skill content under `skills/jp/` may use Japanese when it improves regulatory accuracy and usability.
 
 ## d6e-first architecture
 
@@ -40,7 +40,7 @@ Do not create a separate database, ORM, API server, or custom ledger engine for 
 
 ## Repository structure
 
-The initial structure has four areas: shared, Japan, Singapore, and migration.
+The structure has three areas: shared, Japan, and Singapore.
 
 ```text
 skills/
@@ -72,33 +72,26 @@ skills/
 │           ├── moneyforward.md
 │           └── banking.md
 │
-├── sg/
-│   ├── erp-sg-accounting/
-│   │   ├── SKILL.md
-│   │   └── references/
-│   │       ├── chart-of-accounts.md
-│   │       ├── gst.md
-│   │       ├── invoicing.md
-│   │       ├── payroll.md
-│   │       ├── parameter-inventory.md
-│   │       ├── statutory-reporting.md
-│   │       └── record-retention.md
-│   └── erp-sg-integrations/
-│       ├── SKILL.md
-│       └── references/
-│           ├── invoicenow.md
-│           ├── banking.md
-│           └── government-services.md
-│
-└── migration/
-    └── erp-migrate-trebit/
+└── sg/
+    ├── erp-sg-accounting/
+    │   ├── SKILL.md
+    │   └── references/
+    │       ├── chart-of-accounts.md
+    │       ├── gst.md
+    │       ├── invoicing.md
+    │       ├── payroll.md
+    │       ├── parameter-inventory.md
+    │       ├── statutory-reporting.md
+    │       └── record-retention.md
+    └── erp-sg-integrations/
         ├── SKILL.md
         └── references/
-            ├── data-mapping.md
-            └── reconciliation.md
+            ├── invoicenow.md
+            ├── banking.md
+            └── government-services.md
 ```
 
-This tree describes the planned structure. Do not create empty directories. Add each skill and reference only when its content is implemented.
+This tree describes the accepted structure. Do not create empty directories. Add future skills and references only when their content is implemented.
 
 ## Skill boundaries
 
@@ -114,9 +107,7 @@ Country-specific ERP accounting. Initially separate tax, invoicing, payroll, sta
 
 Mappings between external services and the d6e SQL data model, synchronization direction, identifiers, idempotency, reconciliation, and error handling. Do not duplicate general external API references; use an available built-in d6e SaaS skill.
 
-### `erp-migrate-trebit`
-
-A temporary skill for moving legacy `trebit` data into the d6e SQL schema and reconciling balances and reports. Normal operation of a new ERP must not depend on it.
+Integration state is itself d6e business data. Store connection metadata, object mappings, checkpoints, per-item outcomes, webhook deduplication, and outbound idempotency in d6e SQL, while keeping credentials in the approved d6e or provider credential store. Enforce scoped uniqueness and atomic claim or lease transitions for inbox, outbox, and source-version items. Keep fetch checkpoints separate from processing completion. External acknowledgement and accounting posting remain independent states, and an indeterminate external write must be reconciled before retry unless the provider guarantees idempotency.
 
 ## Skill package shape
 
@@ -146,7 +137,6 @@ erp-sg-accounting/
 - Shared skill: `erp-core`
 - Japan skills: `erp-jp-*`
 - Singapore skills: `erp-sg-*`
-- Migration skills: `erp-migrate-*`
 - Use only lowercase letters, digits, and hyphens in skill names, with a maximum of 64 characters.
 - Do not use `d6e-*`; that prefix is reserved for built-in d6e skills.
 
@@ -158,4 +148,3 @@ Decide the following while implementing the relevant skill:
 - The standard chart of accounts and company-specific extension model
 - Concrete mappings from accounting events to journals
 - Synchronization direction and source of truth for each external service
-- The actual legacy Trebit data formats, record counts, and reconciliation criteria

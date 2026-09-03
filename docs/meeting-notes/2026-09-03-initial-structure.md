@@ -2,6 +2,8 @@
 
 Date: 2026-09-03
 
+Status: The Trebit migration-skill decision below is superseded by [the later integration-skill decision](2026-09-03-integration-skills.md).
+
 ## Decisions
 
 - Retire `trebit` and build future ERP systems on d6e.

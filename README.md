@@ -16,12 +16,10 @@ skills/
 │   └── erp-core/             # implemented
 ├── jp/
 │   ├── erp-jp-accounting/    # implemented
-│   └── erp-jp-integrations/  # planned
-├── sg/
-│   ├── erp-sg-accounting/    # implemented
-│   └── erp-sg-integrations/  # planned
-└── migration/
-    └── erp-migrate-trebit/   # planned
+│   └── erp-jp-integrations/  # implemented
+└── sg/
+    ├── erp-sg-accounting/    # implemented
+    └── erp-sg-integrations/  # implemented
 ```
 
-The initial implementation units are `erp-core`, `erp-jp-accounting`, and `erp-sg-accounting`. Add the integration and legacy `trebit` migration directories only when their content is implemented; do not create empty placeholders.
+The repository implements the shared ERP core plus country accounting and integration units. Valid accounting concepts from Trebit are carried forward in `erp-core`; no Trebit-specific runtime or migration skill is retained. Continue to add files only when they contain usable guidance; do not create empty placeholders.
