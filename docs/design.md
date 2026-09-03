@@ -47,6 +47,7 @@ skills/
 │           ├── d6e-architecture.md
 │           ├── accounting-model.md
 │           ├── authorization.md
+│           ├── statutory-parameters.md
 │           └── workflow-patterns.md
 │
 ├── jp/
@@ -57,6 +58,7 @@ skills/
 │   │       ├── consumption-tax.md
 │   │       ├── invoicing.md
 │   │       ├── payroll.md
+│   │       ├── parameter-inventory.md
 │   │       ├── statutory-reporting.md
 │   │       └── record-retention.md
 │   └── erp-jp-integrations/
@@ -74,6 +76,7 @@ skills/
 │   │       ├── gst.md
 │   │       ├── invoicing.md
 │   │       ├── payroll.md
+│   │       ├── parameter-inventory.md
 │   │       ├── statutory-reporting.md
 │   │       └── record-retention.md
 │   └── erp-sg-integrations/
@@ -127,6 +130,10 @@ erp-sg-accounting/
 - `SKILL.md` には適用条件、主要な判断手順、重要な不変条件、必要な参照ファイルへの案内を書く。
 - 詳細な制度、SQLスキーマ、仕訳例、ワークフロー、受入条件は `references/` に置く。
 - 国別ルールには根拠となる公式情報と確認日を記録し、時点依存の値には適用開始日を付ける。
+- 税率、控除割合、金額上限、期限、率表・様式バージョンなどは、国別の `references/parameter-inventory.md` に集約する。制度説明の参照ファイルは値を重複せず、世代をまたいで安定したインベントリのkeyを参照する。
+- リポジトリ上のインベントリは変更把握とレビューのための機械処理可能なseedであり、実行時の正本はd6e SQLの法定パラメーターマスタとする。取引日、課税期間開始日、支払日、申告日などの適用基準を区別し、承認済みの有効期間行を一意に選ぶ。
+- `tax_codes`は取引分類masterとし、法定rateの正本を重複保持しない。計算結果へrateをsnapshotするときは、参照した法定パラメーター行とversionを記録する。
+- 法改正では既存値を上書きせず、将来行を追加し、適用開始前に回帰テストと承認を完了する。
 - `assets/` は請求書雛形など、生成結果へ実際にコピーするものがある場合だけ作る。
 - スキル内の `scripts/` は d6e へのインストール時に利用されないため、実行時の必須要素にしない。
 

@@ -6,20 +6,20 @@
 
 現在の設計方針は [docs/design.md](docs/design.md) を参照してください。
 
-## Planned layout
+## Current layout
 
 ```text
 skills/
 ├── shared/
-│   └── erp-core/
+│   └── erp-core/             # implemented
 ├── jp/
-│   ├── erp-jp-accounting/
-│   └── erp-jp-integrations/
+│   ├── erp-jp-accounting/    # implemented
+│   └── erp-jp-integrations/  # planned
 ├── sg/
-│   ├── erp-sg-accounting/
-│   └── erp-sg-integrations/
+│   ├── erp-sg-accounting/    # implemented
+│   └── erp-sg-integrations/  # planned
 └── migration/
-    └── erp-migrate-trebit/
+    └── erp-migrate-trebit/   # planned
 ```
 
-各ディレクトリは実際に内容を実装するときに追加します。空のプレースホルダーは作成しません。
+`erp-core`、`erp-jp-accounting`、`erp-sg-accounting`を最初の実装単位とします。`integrations`と旧`trebit`移行は、内容を実装するときにディレクトリを追加し、空のプレースホルダーは作成しません。
